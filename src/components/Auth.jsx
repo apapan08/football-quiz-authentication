@@ -149,21 +149,23 @@ export default function Auth() {
       </form>
 
       {!isSignUp && (
-        <div className="text-center mt-4">
-            <button onClick={handlePasswordReset} className="text-sm text-slate-400 hover:underline">
-                Forgot password?
-            </button>
+        <div className="mt-4">
+          <button onClick={handlePasswordReset} className="btn btn-neutral w-full">
+              Forgot password?
+          </button>
         </div>
       )}
 
-      <div className="mt-4 text-center text-sm text-slate-300">
-        {isSignUp ? 'Returning player?' : 'First time here?'}{' '}
+      <div className="mt-6 text-center">
+        <p className="text-sm text-slate-300 mb-2">
+            {isSignUp ? 'Returning player?' : 'First time here?'}
+        </p>
         <button
           onClick={() => {
             setIsSignUp(!isSignUp);
             clearForm();
           }}
-          className="underline"
+          className="btn btn-neutral w-full"
         >
           {isSignUp ? 'Log In' : 'Sign Up'}
         </button>
