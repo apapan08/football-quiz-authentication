@@ -1,6 +1,6 @@
 // src/pages/Join.jsx
-import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import supabase from '../lib/supabaseClient';
 import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import { QUIZ_ID } from '../lib/quizVersion';
@@ -8,85 +8,94 @@ import { QUIZ_ID } from '../lib/quizVersion';
 export default function Join() {
   const { code } = useParams();
   const nav = useNavigate();
-  const { ready, userId, setName } = useSupabaseAuth();
+  const location = useLocation();
+  const { session, user, loading, name, setName } = useSupabaseAuth();
 
-  const [tempName, setTempName] = useState('');
-  const canJoin = (tempName || '').trim().length >= 2;
+  useEffect(() => {
+    if (loading) return; // Wait until auth state is confirmed
 
-  async function handleJoin() {
-    if (!ready) return;
-    const displayName = (tempName || '').trim().slice(0, 24);
-    if (!displayName) { alert('Βάλε ένα όνομα εμφάνισης'); return; }
-
-    try {
-      setName(displayName);
-
-      // Prefer current QUIZ_ID, fallback to legacy
-      let { data: room } = await supabase
-        .from('rooms').select('*')
-        .eq('code', (code || '').toUpperCase())
-        .eq('quiz_id', QUIZ_ID)
-        .maybeSingle();
-
-      if (!room) {
-        const fb = await supabase.from('rooms').select('*')
-          .eq('code', (code || '').toUpperCase())
-          .maybeSingle();
-        room = fb.data;
-      }
-
-      if (!room) { alert('Το δωμάτιο δεν βρέθηκε'); return; }
-
-      const { error: upErr } = await supabase.from('participants').upsert(
-        { room_id: room.id, user_id: userId, name: displayName, is_host: room.created_by === userId },
-        { onConflict: 'room_id,user_id' }
-      );
-      if (upErr) { console.error(upErr); alert('Αποτυχία εισόδου στο δωμάτιο'); return; }
-
-      nav(`/room/${room.code}`);
-    } catch (e) {
-      console.error(e);
-      alert('Κάτι πήγε στραβά');
+    if (!session || !user) {
+      // If user is not logged in, redirect to landing page to log in.
+      // Pass the current path as a redirect target.
+      nav(`/?redirect=${location.pathname}`, { replace: true });
+      return;
     }
+
+    if (!name.trim()) {
+        // If user is logged in but has no name, stay on a simplified join page
+        // to force them to set a name before proceeding.
+        return;
+    }
+
+    (async () => {
+      try {
+        let { data: room } = await supabase
+          .from('rooms').select('*')
+          .eq('code', (code || '').toUpperCase())
+          .eq('quiz_id', QUIZ_ID)
+          .maybeSingle();
+
+        if (!room) {
+          const fb = await supabase.from('rooms').select('*')
+            .eq('code', (code || '').toUpperCase())
+            .maybeSingle();
+          room = fb.data;
+        }
+
+        if (!room) { alert('Room not found'); nav('/'); return; }
+
+        const { error: upErr } = await supabase.from('participants').upsert(
+          { room_id: room.id, user_id: user.id, name: name, is_host: room.created_by === user.id },
+          { onConflict: 'room_id,user_id' }
+        );
+        if (upErr) { console.error(upErr); alert('Failed to join room'); return; }
+
+        nav(`/room/${room.code}`);
+      } catch (e) {
+        console.error(e);
+        alert('An error occurred.');
+      }
+    })();
+  }, [session, user, loading, name, code, nav, location.pathname]);
+
+  if (loading || (session && name.trim())) {
+    // Show loading text while checking auth or automatically joining
+    return (
+        <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}>
+            <p className="text-white">Joining room...</p>
+        </div>
+    );
   }
 
+  // Simplified form for a logged-in user who is missing a name
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
       style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
     >
       <div className="card w-full max-w-lg text-slate-100">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="font-display text-2xl font-extrabold">Μπες στο δωμάτιο</h1>
-          <div className="pill bg-white/10 whitespace-nowrap">
-            Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span>
-          </div>
-        </div>
-
+        <h1 className="font-display text-2xl font-extrabold">Set Your Display Name</h1>
+        <p className="text-slate-300 mt-2">You need a display name to join the room.</p>
         <div className="mt-6 space-y-3">
-          <label className="block text-sm text-slate-300">Όνομα εμφάνισης</label>
+          <label className="block text-sm text-slate-300">Display Name</label>
           <input
             className="w-full rounded-xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
-            placeholder="π.χ. Goat"
-            value={tempName}
-            onChange={(e) => setTempName(e.target.value)}
+            placeholder="e.g., Goat"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             maxLength={24}
-            inputMode="text"
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
             autoFocus
           />
         </div>
-
-        <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
-          <a className="btn btn-neutral w-full sm:w-auto" href="/">← Αρχική</a>
+        <div className="mt-6 flex justify-end">
           <button
-            className="btn btn-neutral w-full sm:w-auto whitespace-nowrap disabled:opacity-50"
-            onClick={handleJoin}
-            disabled={!ready || !canJoin}
+            className="btn btn-accent w-full sm:w-auto"
+            disabled={!name.trim()}
+            onClick={() => {
+                // The useEffect will re-run and proceed once the name is set
+            }}
           >
-            Μπες
+            Continue
           </button>
         </div>
       </div>

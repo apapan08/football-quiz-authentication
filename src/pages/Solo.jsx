@@ -1,62 +1,47 @@
 // src/pages/Solo.jsx
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import QuizPrototype from "../App.jsx";
 import ResultsOverlayV2 from "../components/ResultsOverlayV2.jsx";
 import { useSupabaseAuth } from "../hooks/useSupabaseAuth";
 import supabase from "../lib/supabaseClient";
 import { QUIZ_ID } from "../lib/quizVersion";
 
-const NAME_KEY = "display_name_v1";
-function getDisplayName(fallback) {
-  try {
-    const v = (localStorage.getItem(NAME_KEY) || "").trim();
-    return v || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 export default function Solo() {
-  const { ready, userId, name, setName } = useSupabaseAuth();
+  const nav = useNavigate();
+  const { session, user, loading, name, setName } = useSupabaseAuth();
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayView, setOverlayView] = useState("global");
-  const [refreshTick, setRefreshTick] = useState(0); // ← bump after successful insert
+  const [refreshTick, setRefreshTick] = useState(0);
   const mySeedRowRef = useRef(null);
 
-  async function upsertSoloRun({ score, maxStreak, durationSeconds }) {
-    if (!ready || !userId) return { ok: false };
+  useEffect(() => {
+    if (!loading && !session) {
+      nav('/', { replace: true });
+    }
+  }, [session, loading, nav]);
 
-    const displayName = getDisplayName(name) || 'Player';
+  async function upsertSoloRun({ score, maxStreak, durationSeconds }) {
+    if (!user) return { ok: false };
+
+    const displayName = name || 'Player';
 
     const payload = {
-      room_id: null,              // SOLO
-      user_id: userId,
+      room_id: null, // SOLO
+      user_id: user.id,
       name: displayName,
       score,
       max_streak: maxStreak,
       duration_seconds: durationSeconds,
       finished_at: new Date().toISOString(),
-      quiz_id: QUIZ_ID,          // version scope
+      quiz_id: QUIZ_ID,
     };
 
-    // Try update existing solo row for this user+quiz; else insert
-    const upd = await supabase
-      .from("runs")
-      .update(payload)
-      .is("room_id", null)
-      .eq("user_id", userId)
-      .eq("quiz_id", QUIZ_ID)
-      .select("user_id")
-      .limit(1);
+    const { error } = await supabase.from("runs").upsert(payload, { onConflict: 'user_id, quiz_id, room_id' });
 
-    if (!upd.error && Array.isArray(upd.data) && upd.data.length > 0) {
-      return { ok: true, name: displayName };
-    }
-
-    const ins = await supabase.from("runs").insert(payload);
-    if (ins.error) {
-      console.error("[solo] insert runs failed:", ins.error);
-      return { ok: false, error: ins.error };
+    if (error) {
+      console.error("[solo] upsert runs failed:", error);
+      return { ok: false, error };
     }
     return { ok: true, name: displayName };
   }
@@ -64,13 +49,12 @@ export default function Solo() {
   async function onFinish({ score, maxStreak, durationSeconds }) {
     const res = await upsertSoloRun({ score, maxStreak, durationSeconds });
     if (!res.ok) {
-      alert("Αποτυχία καταχώρησης αποτελέσματος (δείτε console).");
+      alert("Failed to save result (see console).");
       return;
     }
 
-    // Seed a minimal row (for highlighting “YOU” if needed)
     mySeedRowRef.current = {
-      user_id: userId,
+      user_id: user.id,
       name: res.name || name || "Player",
       score,
       max_streak: maxStreak,
@@ -78,38 +62,38 @@ export default function Solo() {
       finished_at: new Date().toISOString(),
     };
 
-    // Force an immediate reload of Global leaderboard queries
     setRefreshTick((t) => t + 1);
-
-    // Open overlay directly in Global for SOLO
     setOverlayView("global");
     setShowOverlay(true);
+  }
+
+  if (loading || !session) {
+    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading...</p></div>;
   }
 
   return (
     <>
       <QuizPrototype
-        roomCode={null}             // SOLO
+        roomCode={null} // SOLO
         onFinish={onFinish}
-        playerName={name || ""}     // let user type; stored under NAME_KEY by the quiz
+        playerName={name || ""}
         onOpenOverlayRequest={() => {
-          // If they press «Δες κατάταξη» before finishing, still open global
           setOverlayView("global");
           setShowOverlay(true);
         }}
-        startStage="name"
-        onNameSaved={setName}          // start from Name stage
+        startStage="intro" // For solo, we can skip the name stage as we have it from auth
+        onNameSaved={setName}
       />
 
       {showOverlay && (
         <ResultsOverlayV2
           onClose={() => setShowOverlay(false)}
-          roomCode={null}                   // SOLO
-          youId={userId}
+          roomCode={null} // SOLO
+          youId={user.id}
           seedRow={mySeedRowRef.current}
           view={overlayView}
           onViewChange={(v) => setOverlayView(v)}
-          refreshSignal={refreshTick}       // ← forces reload on fresh submission
+          refreshSignal={refreshTick}
         />
       )}
     </>

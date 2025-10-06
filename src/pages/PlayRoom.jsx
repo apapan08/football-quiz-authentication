@@ -19,7 +19,7 @@ export default function PlayRoom() {
   const q = useQuery();
   const startedAt = Number(q.get('t')) || Date.now();
 
-  const { ready, userId, name } = useSupabaseAuth();
+  const { user, loading, name } = useSupabaseAuth();
   const roomRef = useRef(null);
 
   const [showOverlay, setShowOverlay] = useState(false);
@@ -47,7 +47,7 @@ export default function PlayRoom() {
   }
 
   useEffect(() => {
-    if (!ready || !userId) return;
+    if (loading || !user) return;
     let channel;
     (async () => {
       // Prefer current version, but allow legacy rooms by code only
@@ -57,11 +57,11 @@ export default function PlayRoom() {
         const fb = await supabase.from('rooms').select('*').eq('code', code).maybeSingle();
         room = fb.data;
       }
-      if (!room) { alert('Δωμάτιο δεν βρέθηκε'); nav('/'); return; }
+      if (!room) { alert('Room not found'); nav('/'); return; }
       roomRef.current = room;
 
       const up = await supabase.from('participants').upsert(
-        { room_id: room.id, user_id: userId, name: name || 'Player', is_host: room.created_by === userId },
+        { room_id: room.id, user_id: user.id, name: name || 'Player', is_host: room.created_by === user.id },
         { onConflict: 'room_id,user_id' }
       );
       if (up.error) console.error('participants upsert failed:', up.error);
@@ -76,11 +76,11 @@ export default function PlayRoom() {
     })();
 
     return () => { if (channel) supabase.removeChannel(channel); };
-  }, [ready, userId, code, nav, name]);
+  }, [loading, user, code, nav, name]);
 
   const roomChannelData = useRoomChannel({
     code,
-    user_id: userId,
+    user_id: user?.id,
     name: name || 'Player',
     is_host: false,
     onStart: () => {},
@@ -92,7 +92,7 @@ export default function PlayRoom() {
 
   async function onFinish({ score, maxStreak, durationSeconds, resultRows }) {
     if (hasFinishedRef.current) return;
-    if (!ready || !userId) return;
+    if (loading || !user) return;
     hasFinishedRef.current = true;
 
     const room = roomRef.current;
@@ -101,7 +101,7 @@ export default function PlayRoom() {
     const { error } = await supabase.from('runs').upsert(
       {
         room_id: room.id,
-        user_id: userId,
+        user_id: user.id,
         name: name || 'Player',
         score,
         max_streak: maxStreak,
@@ -114,17 +114,21 @@ export default function PlayRoom() {
     if (error) {
       hasFinishedRef.current = false;
       console.error('runs upsert failed:', error);
-      alert('Αποτυχία καταχώρησης αποτελέσματος (δείτε console).');
+      alert('Failed to submit result (see console).');
       return;
     }
 
-    await broadcastFinish({ user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds });
+    await broadcastFinish({ user_id: user.id, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds });
     await refreshResults();
 
-    setMySeedRow({ user_id: userId, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds, finished_at: new Date().toISOString() });
+    setMySeedRow({ user_id: user.id, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds, finished_at: new Date().toISOString() });
     if (Array.isArray(resultRows)) setMyResultRows(resultRows);
     setOverlayView('room');
     setShowOverlay(true);
+  }
+
+  if (loading || !user) {
+    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading...</p></div>;
   }
 
   return (
@@ -141,7 +145,7 @@ export default function PlayRoom() {
         <ResultsOverlayV2
           onClose={() => setShowOverlay(false)}
           roomCode={code}
-          youId={userId}
+          youId={user.id}
           seedRow={mySeedRow}
           view={overlayView}
           onViewChange={(v) => setOverlayView(v)}

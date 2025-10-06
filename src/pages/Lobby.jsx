@@ -9,7 +9,7 @@ import { QUIZ_ID } from '../lib/quizVersion';
 export default function Lobby() {
   const { code } = useParams();
   const nav = useNavigate();
-  const { ready, userId, name } = useSupabaseAuth();
+  const { user, loading, name } = useSupabaseAuth();
 
   const [room, setRoom] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -22,14 +22,14 @@ export default function Lobby() {
       : '';
 
   useEffect(() => {
-    if (ready && !((name || '').trim())) {
+    if (!loading && !name.trim()) {
       nav(`/join/${code}`, { replace: true });
     }
-  }, [ready, name, code, nav]);
+  }, [loading, name, code, nav]);
 
   // Fetch room (prefer current quiz), ensure I'm a participant
   useEffect(() => {
-    if (!ready || !userId) return;
+    if (loading || !user) return;
 
     (async () => {
       let q = await supabase
@@ -45,7 +45,7 @@ export default function Lobby() {
         data = fb.data;
       }
       if (!data) {
-        alert('Το δωμάτιο δεν βρέθηκε');
+        alert('Room not found');
         nav('/');
         return;
       }
@@ -55,15 +55,15 @@ export default function Lobby() {
       const up = await supabase.from('participants').upsert(
         {
           room_id: data.id,
-          user_id: userId,
+          user_id: user.id,
           name: (name || 'Player').trim(),
-          is_host: data.created_by === userId,
+          is_host: data.created_by === user.id,
         },
         { onConflict: 'room_id,user_id' }
       );
       if (up.error) console.error('participants upsert failed:', up.error);
     })();
-  }, [ready, code, userId, name, nav]);
+  }, [loading, code, user, name, nav]);
 
   // Seed + realtime roster from participants
   useEffect(() => {
@@ -99,11 +99,11 @@ export default function Lobby() {
     return () => { try { channel?.unsubscribe(); } catch {} };
   }, [room?.id]);
 
-  const isHost = useMemo(() => room && userId === room.created_by, [room, userId]);
+  const isHost = useMemo(() => room && user && room.created_by === user.id, [room, user]);
 
   const { roster, broadcastStart } = useRoomChannel({
     code,
-    user_id: userId,
+    user_id: user?.id,
     name: name || 'Player',
     is_host: isHost,
     onStart: ({ startedAt }) => { nav(`/play/${code}?t=${startedAt}`); },
@@ -139,26 +139,26 @@ export default function Lobby() {
       <div className="card w-full max-w-2xl text-slate-100">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-2xl font-extrabold">Lobby</h1>
-          <div className="pill bg-white/10">Κωδικός: <span className="font-mono">{(code || '').toUpperCase()}</span></div>
+          <div className="pill bg-white/10">Code: <span className="font-mono">{(code || '').toUpperCase()}</span></div>
         </div>
 
         <div className="mt-4 text-sm text-slate-300 space-y-2">
-          <div>Στείλε αυτό το link στους φίλους σου:</div>
+          <div>Send this link to your friends:</div>
 
           <div className="flex flex-col sm:flex-row gap-2">
             <input className="flex-1 min-w-0 rounded-2xl bg-slate-900/60 px-4 py-2.5 text-slate-200 outline-none ring-1 ring-white/10" readOnly value={shareUrl} />
             <button className="btn btn-neutral w-full sm:w-auto shrink-0" onClick={copyInvite}>
-              {copied ? '✓ Αντιγράφηκε' : 'Αντιγραφή'}
+              {copied ? '✓ Copied' : 'Copy'}
             </button>
           </div>
 
           <div className="text-xs text-slate-400">
-            Εναλλακτικά, δώσε τον κωδικό: <span className="font-mono">{(code || '').toUpperCase()}</span>
+            Alternatively, give them the code: <span className="font-mono">{(code || '').toUpperCase()}</span>
           </div>
           <div className="text-xs text-slate-400 mt-1">
             {isHost
-              ? (displayRoster.length < 2 ? 'Περίμενε να μπουν τουλάχιστον 2 παίκτες για να ξεκινήσεις.' : 'Όταν είστε έτοιμοι, πάτησε «Ξεκίνα το παιχνίδι».')
-              : 'Περίμενε τον host να ξεκινήσει το παιχνίδι.'}
+              ? (displayRoster.length < 2 ? 'Waiting for at least 2 players to start.' : 'When you are ready, press "Start Game".')
+              : 'Waiting for the host to start the game.'}
           </div>
         </div>
 
@@ -167,18 +167,19 @@ export default function Lobby() {
             <li key={p.user_id} className="py-2 flex items-center justify-between">
               <div className="font-semibold">{p.name}</div>
               <div className="text-xs text-slate-300">
-                {p.is_host ? 'Host' : 'Player'} {p.finished ? '• Ολοκλήρωσε' : ''}
+                {p.is_host ? 'Host' : 'Player'} {p.finished ? '• Finished' : ''}
               </div>
             </li>
           ))}
-          {displayRoster.length === 0 && <li className="py-4 text-slate-400">Κανείς δεν είναι μέσα ακόμα…</li>}
+          {displayRoster.length === 0 && <li className="py-4 text-slate-400">No one is here yet...</li>}
         </ul>
 
         <div className="mt-6 flex justify-between">
-          <a className="btn btn-neutral" href="/">← Αρχική</a>
-          <button className="btn btn-accent disabled:opacity-60" disabled={!canStart} onClick={startGame}>Ξεκίνα το παιχνίδι</button>
+          <a className="btn btn-neutral" href="/">← Home</a>
+          <button className="btn btn-accent disabled:opacity-60" disabled={!canStart} onClick={startGame}>Start Game</button>
         </div>
       </div>
     </div>
   );
 }
+
