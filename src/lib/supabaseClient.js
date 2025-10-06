@@ -23,7 +23,7 @@ const client = createClient(url || 'https://placeholder.supabase.co', key || 'pl
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
   },
   realtime: { params: { eventsPerSecond: 10 } },
 });

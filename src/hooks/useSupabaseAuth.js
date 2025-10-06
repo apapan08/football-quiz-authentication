@@ -6,13 +6,49 @@ export function useSupabaseAuth() {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState(null);
+  const [name, setName] = useState('');
+
+  // Listen to auth changes
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Initial session load
+    const getInitialSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+    }
+
+    getInitialSession();
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // Fetch profile when user changes
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          setName(data?.username || '');
+        });
+    }
+  }, [user]);
 
   const updateProfile = useCallback(async (newName) => {
     if (!user) return;
     const newUsername = (newName || '').trim();
     if (newUsername.length < 3) {
-        // Or handle this with some UI feedback
         console.warn('Username must be at least 3 characters long');
         return;
     }
@@ -23,50 +59,9 @@ export function useSupabaseAuth() {
     }
   }, [user]);
 
-  useEffect(() => {
-    const getSessionAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      const currentUser = session?.user;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', currentUser.id)
-          .single();
-        setName(profile?.username || '');
-      }
-      setLoading(false);
-    };
-
-    getSessionAndProfile();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      const currentUser = session?.user;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', currentUser.id)
-          .single();
-        setName(profile?.username || '');
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
   const signOut = async () => {
     await supabase.auth.signOut();
-    setName(null);
+    setName('');
   };
 
   return { session, user, loading, name, setName: updateProfile, signOut };
