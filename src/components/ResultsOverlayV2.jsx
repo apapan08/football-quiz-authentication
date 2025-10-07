@@ -122,7 +122,7 @@ function useRoomData(roomCode, youId, seedRow) {
 }
 
 // ---------- global (scoped by QUIZ_ID) ----------
-function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
+function useGlobalAllTime(quizId = "default", youId = null, seedRow = null, refreshSignal = 0) {
   const [top, setTop] = useState([]);
   const [yours, setYours] = useState(null);
 
@@ -144,8 +144,18 @@ function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
         .order("duration_seconds", { ascending: true })
         .order("created_at", { ascending: true })
         .limit(50);
+
       if (q1.error) console.error("[overlay] leaderboard top error:", q1.error);
-      if (mounted && !q1.error) setTop(q1.data || []);
+      
+      if (mounted && !q1.error) {
+        // Smartly merge the seed row to prevent timing issues
+        const byId = new Map((q1.data || []).map(r => [r.user_id, r]));
+        if (seedRow && youId === seedRow.user_id) {
+            byId.set(youId, { ...byId.get(youId), ...seedRow });
+        }
+        const final = Array.from(byId.values()).sort(sortFn);
+        setTop(final);
+      }
 
       if (youId) {
         const q2 = await supabase
@@ -192,11 +202,12 @@ function useGlobalAllTime(quizId = "default", youId = null, refreshSignal = 0) {
       .subscribe();
 
   return () => {
+      mounted = false;
       try {
         channel && supabase.removeChannel(channel);
       } catch {}
     };
-  }, [quizId, youId, refreshSignal]);
+  }, [quizId, youId, seedRow, refreshSignal]);
 
   return { top, yours };
 }
@@ -214,8 +225,8 @@ export default function ResultsOverlayV2({
   const soloMode = !roomCode;
   const { room, rows, totalPlayers, yourRank } = useRoomData(roomCode, youId, seedRow);
   const finished = rows.length;
-  const reloadKey = (finished || 0) + (refreshSignal || 0); // ← NEW
-  const { top /*, yours*/ } = useGlobalAllTime(QUIZ_ID, youId, reloadKey);
+  const reloadKey = (finished || 0) + (refreshSignal || 0);
+  const { top /*, yours*/ } = useGlobalAllTime(QUIZ_ID, youId, seedRow, reloadKey);
   const total = Math.max(totalPlayers, finished || 1);
 
   // Default to Global when SOLO, else Room
