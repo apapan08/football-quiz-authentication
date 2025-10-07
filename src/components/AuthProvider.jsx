@@ -15,10 +15,9 @@ export function AuthProvider({ children }) {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
-      } else if (event !== 'USER_UPDATED') {
-        // Avoid resetting on profile updates
-        setIsPasswordRecovery(false);
       }
+      // We no longer set the recovery state to false here.
+      // It will be manually reset by the ResetPassword component.
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
