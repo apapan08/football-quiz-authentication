@@ -1,8 +1,10 @@
 // src/hooks/useSupabaseAuth.js
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import supabase from '../lib/supabaseClient';
 
-export function useSupabaseAuth() {
+const AuthContext = createContext();
+
+export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [name, setName] = useState('');
@@ -10,25 +12,24 @@ export function useSupabaseAuth() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
-  // Listen to auth changes
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      // This should only be set to true by the PASSWORD_RECOVERY event
-      // and reset to false manually after the password has been updated.
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
+      } else {
+        // On any other auth event, we are no longer in recovery mode.
+        setIsPasswordRecovery(false);
       }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Initial session load
     const getInitialSession = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     }
 
     getInitialSession();
@@ -38,7 +39,6 @@ export function useSupabaseAuth() {
     };
   }, []);
 
-  // Fetch profile when user changes
   useEffect(() => {
     if (user) {
       setProfileLoading(true);
@@ -60,8 +60,8 @@ export function useSupabaseAuth() {
     if (!user) return;
     const newUsername = (newName || '').trim();
     if (newUsername.length < 3) {
-        console.warn('Username must be at least 3 characters long');
-        return;
+      console.warn('Username must be at least 3 characters long');
+      return;
     }
     setName(newUsername);
     const { error } = await supabase.from('profiles').update({ username: newUsername }).eq('id', user.id);
@@ -75,5 +75,21 @@ export function useSupabaseAuth() {
     setName('');
   };
 
-  return { session, user, loading, profileLoading, isPasswordRecovery, setIsPasswordRecovery, name, setName: updateProfile, signOut };
+  const value = {
+    session,
+    user,
+    loading,
+    profileLoading,
+    isPasswordRecovery,
+    setIsPasswordRecovery, // Expose this to be called from ResetPassword page
+    name,
+    setName: updateProfile,
+    signOut,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useSupabaseAuth() {
+  return useContext(AuthContext);
 }
