@@ -1,8 +1,10 @@
 // src/pages/ResetPassword.jsx
 import React, { useState } from 'react';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 import supabase from '../lib/supabaseClient';
 
 export default function ResetPassword() {
+  const { setIsPasswordRecovery } = useSupabaseAuth();
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -19,7 +21,10 @@ export default function ResetPassword() {
     if (error) {
       setError(error.message);
     } else {
-      setMessage('Password updated successfully! You can now sign out and sign back in with your new password.');
+      setMessage('Password updated successfully! You will be redirected to the lobby shortly.');
+      setTimeout(() => {
+        setIsPasswordRecovery(false);
+      }, 2000);
     }
     setLoading(false);
   };
@@ -47,7 +52,7 @@ export default function ResetPassword() {
           {message && <p className="text-green-400 text-sm">{message}</p>}
 
           <div className="pt-4">
-            <button type="submit" className="btn btn-accent w-full" disabled={loading}>
+            <button type="submit" className="btn btn-accent w-full" disabled={loading || message}>
               {loading ? 'Saving...' : 'Save New Password'}
             </button>
           </div>

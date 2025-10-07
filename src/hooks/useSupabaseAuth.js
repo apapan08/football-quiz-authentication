@@ -13,10 +13,10 @@ export function useSupabaseAuth() {
   // Listen to auth changes
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      // This should only be set to true by the PASSWORD_RECOVERY event
+      // and reset to false manually after the password has been updated.
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
-      } else {
-        setIsPasswordRecovery(false);
       }
       setSession(session);
       setUser(session?.user ?? null);
@@ -75,5 +75,5 @@ export function useSupabaseAuth() {
     setName('');
   };
 
-  return { session, user, loading, profileLoading, isPasswordRecovery, name, setName: updateProfile, signOut };
+  return { session, user, loading, profileLoading, isPasswordRecovery, setIsPasswordRecovery, name, setName: updateProfile, signOut };
 }
