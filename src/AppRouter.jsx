@@ -6,13 +6,15 @@ import Lobby from "./pages/Lobby.jsx";
 import PlayRoom from "./pages/PlayRoom.jsx";
 import Leaderboard from "./pages/Leaderboard.jsx";
 import Join from "./pages/Join.jsx";
-import Solo from "./pages/Solo.jsx"; // ← use the Solo wrapper
+import Solo from "./pages/Solo.jsx";
+import Profile from "./pages/Profile.jsx"; // Import the new Profile page
 
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/profile" element={<Profile />} /> {/* Add the new profile route */}
         <Route path="/join/:code" element={<Join />} />
         <Route path="/room/:code" element={<Lobby />} />
         <Route path="/play/:code" element={<PlayRoom />} />

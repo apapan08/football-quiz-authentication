@@ -18,6 +18,7 @@ const EyeIcon = ({ closed }) => (
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
@@ -41,7 +42,13 @@ export default function Auth() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+        email, 
+        password,
+        options: {
+            data: { username: username.trim() }
+        }
+    });
 
     if (error) {
       setError(error.message);
@@ -90,6 +97,19 @@ export default function Auth() {
       <h2 className="text-2xl font-bold text-center text-white mb-4">{isSignUp ? 'Create Account' : 'Sign In'}</h2>
       
       <form onSubmit={isSignUp ? handleSignUp : handleLogIn} className="space-y-4">
+        {isSignUp && (
+            <div>
+                <label className="block text-sm text-slate-300">Username</label>
+                <input
+                    className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
+                    type="text"
+                    placeholder="e.g., TheGOAT"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                />
+            </div>
+        )}
         <div>
           <label className="block text-sm text-slate-300">Email</label>
           <input

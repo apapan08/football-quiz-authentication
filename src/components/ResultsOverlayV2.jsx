@@ -19,7 +19,7 @@ function fmtTime(sec) {
 // NOTE: runs table uses finished_at (not created_at)
 const RUNS_COLS = "user_id,name,score,max_streak,duration_seconds,finished_at";
 // Global table has created_at (we fetch it for stable sorting/keys; not shown in UI)
-const GLB_COLS = "user_id,name,score,duration_seconds,created_at";
+const GLB_COLS = "user_id,name,score,max_streak,duration_seconds,created_at";
 
 // ---------- room data ----------
 function useRoomData(roomCode, youId, seedRow) {

@@ -98,23 +98,45 @@ export default function PlayRoom() {
     const room = roomRef.current;
     if (!room) return;
 
-    const { error } = await supabase.from('runs').upsert(
-      {
-        room_id: room.id,
-        user_id: user.id,
-        name: name || 'Player',
-        score,
-        max_streak: maxStreak,
-        duration_seconds: durationSeconds,
-        finished_at: new Date().toISOString(),
-        quiz_id: QUIZ_ID,           // ← version tag for runs
-      },
-      { onConflict: 'room_id,user_id' }
-    );
-    if (error) {
-      hasFinishedRef.current = false;
-      console.error('runs upsert failed:', error);
-      alert('Failed to submit result (see console).');
+    const payload = {
+      room_id: room.id,
+      user_id: user.id,
+      name: name || 'Player', // Re-add name to satisfy NOT NULL constraint
+      score,
+      max_streak: maxStreak,
+      duration_seconds: durationSeconds,
+      finished_at: new Date().toISOString(),
+      quiz_id: QUIZ_ID,
+    };
+
+    // Check if a run already exists for this user in this room
+    const { data: existingRun, error: selectError } = await supabase
+      .from('runs')
+      .select('id')
+      .eq('room_id', room.id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (selectError) {
+      console.error("[playroom] select run failed:", selectError);
+      hasFinishedRef.current = false; // Allow retry
+      alert('Failed to save result (see console).');
+      return;
+    }
+
+    let dbError;
+    if (existingRun) {
+      const { error } = await supabase.from('runs').update(payload).eq('id', existingRun.id);
+      dbError = error;
+    } else {
+      const { error } = await supabase.from('runs').insert(payload);
+      dbError = error;
+    }
+
+    if (dbError) {
+      hasFinishedRef.current = false; // Allow retry
+      console.error('runs save failed:', dbError);
+      alert('Failed to save result (see console).');
       return;
     }
 

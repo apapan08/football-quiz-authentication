@@ -14,7 +14,7 @@ function useQuery() {
 export default function Landing() {
   const nav = useNavigate();
   const query = useQuery();
-  const { session, user, loading, name, setName, signOut } = useSupabaseAuth();
+  const { session, user, loading, name, signOut } = useSupabaseAuth();
   const [code, setCode] = useState('');
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function Landing() {
 
   async function createRoom() {
     if (!user) return;
-    if (!name.trim()) { alert('Please set a display name.'); return; }
+    if (!name || !name.trim()) { alert('You must have a username to create a room. Please set one on your profile page.'); return; }
 
     const roomCode = await generateUniqueRoomCode();
     const { data: room, error: e1 } = await supabase
@@ -57,7 +57,7 @@ export default function Landing() {
 
     const c = (code || '').trim().toUpperCase();
     if (!c || c.length !== 5) { alert('Valid 5-letter code required'); return; }
-    if (!name.trim()) { alert('Please set a display name.'); return; }
+    if (!name || !name.trim()) { alert('You must have a username to join a room. Please set one on your profile page.'); return; }
 
     let { data: room, error } = await supabase.from('rooms').select('*').eq('code', c).eq('quiz_id', QUIZ_ID).maybeSingle();
     if (!room) {
@@ -97,26 +97,16 @@ export default function Landing() {
       style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
     >
       <div className="card w-full max-w-3xl text-slate-100">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="font-display text-3xl md:text-4xl font-extrabold text-center">Lobby</h1>
-          <button onClick={signOut} className="btn btn-neutral">Sign Out</button>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <label className="block text-sm text-slate-300">Display Name</label>
-          <input
-            className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., Goat"
-            maxLength={24}
-            autoComplete="off"
-            spellCheck={false}
-          />
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="font-display text-3xl md:text-4xl font-extrabold">Welcome, {name || 'Player'}!</h1>
+          <div className="flex items-center gap-2">
+            <button onClick={() => nav('/profile')} className="btn btn-neutral">Profile</button>
+            <button onClick={signOut} className="btn btn-neutral">Sign Out</button>
+          </div>
         </div>
 
         <div className="mt-6 flex flex-col sm:flex-row items-stretch gap-3">
-          <button className="btn btn-accent w-full sm:w-auto" onClick={createRoom} disabled={!name.trim()}>
+          <button className="btn btn-accent w-full sm:w-auto" onClick={createRoom} disabled={!name || !name.trim()}>
             Create Room
           </button>
 
@@ -125,14 +115,14 @@ export default function Landing() {
               className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400 uppercase"
               placeholder="ROOM CODE (e.g., ABCDE)"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 5))}
+              onChange={(e) => setCode(e.g. value.toUpperCase().slice(0, 5))}
               maxLength={5}
               autoComplete="off"
               spellCheck={false}
             />
           </div>
 
-          <button className="btn btn-neutral w-full sm:w-auto shrink-0 whitespace-nowrap" onClick={joinRoom} disabled={!name.trim() || code.trim().length !== 5}>
+          <button className="btn btn-neutral w-full sm:w-auto shrink-0 whitespace-nowrap" onClick={joinRoom} disabled={!name || !name.trim() || code.trim().length !== 5}>
             Join
           </button>
         </div>

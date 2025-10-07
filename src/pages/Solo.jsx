@@ -24,12 +24,9 @@ export default function Solo() {
   async function upsertSoloRun({ score, maxStreak, durationSeconds }) {
     if (!user) return { ok: false };
 
-    const displayName = name || 'Player';
-
     const payload = {
-      room_id: null, // SOLO
       user_id: user.id,
-      name: displayName,
+      name: name || 'Player', // Re-add name to satisfy NOT NULL constraint
       score,
       max_streak: maxStreak,
       duration_seconds: durationSeconds,
@@ -37,13 +34,41 @@ export default function Solo() {
       quiz_id: QUIZ_ID,
     };
 
-    const { error } = await supabase.from("runs").upsert(payload, { onConflict: 'user_id, quiz_id, room_id' });
+    // Check if a solo run for this user and quiz already exists
+    const { data: existingRun, error: selectError } = await supabase
+      .from('runs')
+      .select('id')
+      .is('room_id', null)
+      .eq('user_id', user.id)
+      .eq('quiz_id', QUIZ_ID)
+      .maybeSingle();
+
+    if (selectError) {
+      console.error("[solo] select run failed:", selectError);
+      return { ok: false, error: selectError };
+    }
+
+    let error;
+    if (existingRun) {
+      // If it exists, update it
+      const { error: updateError } = await supabase
+        .from('runs')
+        .update({ ...payload, room_id: null })
+        .eq('id', existingRun.id);
+      error = updateError;
+    } else {
+      // If it doesn't exist, insert it
+      const { error: insertError } = await supabase
+        .from('runs')
+        .insert({ ...payload, room_id: null });
+      error = insertError;
+    }
 
     if (error) {
       console.error("[solo] upsert runs failed:", error);
       return { ok: false, error };
     }
-    return { ok: true, name: displayName };
+    return { ok: true };
   }
 
   async function onFinish({ score, maxStreak, durationSeconds }) {
