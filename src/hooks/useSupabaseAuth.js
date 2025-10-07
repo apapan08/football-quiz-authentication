@@ -8,10 +8,16 @@ export function useSupabaseAuth() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   // Listen to auth changes
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      } else {
+        setIsPasswordRecovery(false);
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -69,5 +75,5 @@ export function useSupabaseAuth() {
     setName('');
   };
 
-  return { session, user, loading, profileLoading, name, setName: updateProfile, signOut };
+  return { session, user, loading, profileLoading, isPasswordRecovery, name, setName: updateProfile, signOut };
 }
