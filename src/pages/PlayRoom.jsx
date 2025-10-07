@@ -28,6 +28,7 @@ export default function PlayRoom() {
   const [overlayView, setOverlayView] = useState(null);
   const [results, setResults] = useState([]);
   const [totalPlayers, setTotalPlayers] = useState(0);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   async function refreshResults() {
     const room = roomRef.current;
@@ -44,6 +45,7 @@ export default function PlayRoom() {
     );
     setResults(runs);
     setTotalPlayers((partsRes.data || []).length || 0);
+    setRefreshTick(t => t + 1); // Force global leaderboard to refresh
   }
 
   useEffect(() => {
@@ -175,6 +177,7 @@ export default function PlayRoom() {
           myScore={mySeedRow?.score}
           myMaxStreak={mySeedRow?.max_streak}
           playerName={name || 'Player'}
+          refreshSignal={refreshTick}
         />
       )}
     </>
