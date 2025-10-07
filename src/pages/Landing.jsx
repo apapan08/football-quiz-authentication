@@ -93,19 +93,21 @@ export default function Landing() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6"
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6"
       style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
     >
-      <div className="card w-full max-w-3xl text-slate-100">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-          <h1 className="font-display text-3xl md:text-4xl font-extrabold">Welcome, {name || 'Player'}!</h1>
-          <div className="flex items-center gap-2">
-            <button onClick={() => nav('/profile')} className="btn btn-neutral">Profile</button>
-            <button onClick={signOut} className="btn btn-neutral">Sign Out</button>
+      <div className="card w-full max-w-2xl text-slate-100 p-6 sm:p-8">
+        {/* --- Header --- */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
+          <h1 className="font-display text-3xl md:text-4xl font-extrabold text-center sm:text-left">Welcome, {name || 'Player'}!</h1>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button onClick={() => nav('/profile')} className="btn btn-neutral flex-1 sm:flex-initial font-semibold">Profile</button>
+            <button onClick={signOut} className="btn btn-neutral flex-1 sm:flex-initial font-semibold">Sign Out</button>
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row items-stretch gap-3">
+        {/* --- Multiplayer Actions --- */}
+        <div className="flex flex-col sm:flex-row items-stretch gap-3">
           <button className="btn btn-accent w-full sm:w-auto" onClick={createRoom} disabled={!name || !name.trim()}>
             Create Room
           </button>
@@ -115,7 +117,7 @@ export default function Landing() {
               className="w-full rounded-2xl bg-slate-900/60 px-4 py-3 text-slate-100 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-pink-400 uppercase"
               placeholder="ROOM CODE (e.g., ABCDE)"
               value={code}
-              onChange={(e) => setCode(e.g. value.toUpperCase().slice(0, 5))}
+              onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 5))}
               maxLength={5}
               autoComplete="off"
               spellCheck={false}
@@ -127,9 +129,21 @@ export default function Landing() {
           </button>
         </div>
 
-        <div className="mt-6 text-center text-sm text-slate-300">
-          Want to play solo? <a className="underline" href="/solo">Play Solo</a>
+        {/* --- Separator --- */}
+        <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-white/10"></div>
+            </div>
+            <div className="relative flex justify-center">
+                <span className="bg-slate-900 px-2 text-sm text-slate-400">Or</span>
+            </div>
         </div>
+
+        {/* --- Solo Action --- */}
+        <div>
+            <a href="/solo" className="btn btn-neutral w-full font-semibold">Play Solo Mode</a>
+        </div>
+
       </div>
     </div>
   );
