@@ -19,7 +19,7 @@ export default function PlayRoom() {
   const q = useQuery();
   const startedAt = Number(q.get('t')) || Date.now();
 
-  const { user, loading, name } = useSupabaseAuth();
+  const { user, loading, profileLoading, name } = useSupabaseAuth();
   const roomRef = useRef(null);
 
   const [showOverlay, setShowOverlay] = useState(false);
@@ -47,7 +47,7 @@ export default function PlayRoom() {
   }
 
   useEffect(() => {
-    if (loading || !user) return;
+    if (loading || profileLoading || !user) return;
     let channel;
     (async () => {
       // Prefer current version, but allow legacy rooms by code only
@@ -61,7 +61,7 @@ export default function PlayRoom() {
       roomRef.current = room;
 
       const up = await supabase.from('participants').upsert(
-        { room_id: room.id, user_id: user.id, name: name || 'Player', is_host: room.created_by === user.id },
+        { room_id: room.id, user_id: user.id, name: name, is_host: room.created_by === user.id },
         { onConflict: 'room_id,user_id' }
       );
       if (up.error) console.error('participants upsert failed:', up.error);
@@ -76,12 +76,12 @@ export default function PlayRoom() {
     })();
 
     return () => { if (channel) supabase.removeChannel(channel); };
-  }, [loading, user, code, nav, name]);
+  }, [loading, profileLoading, user, code, nav, name]);
 
   const roomChannelData = useRoomChannel({
     code,
     user_id: user?.id,
-    name: name || 'Player',
+    name: name,
     is_host: false,
     onStart: () => {},
     onFinishBroadcast: () => refreshResults(),
@@ -92,7 +92,7 @@ export default function PlayRoom() {
 
   async function onFinish({ score, maxStreak, durationSeconds, resultRows }) {
     if (hasFinishedRef.current) return;
-    if (loading || !user) return;
+    if (loading || profileLoading || !user) return;
     hasFinishedRef.current = true;
 
     const room = roomRef.current;
@@ -101,7 +101,7 @@ export default function PlayRoom() {
     const payload = {
       room_id: room.id,
       user_id: user.id,
-      name: name || 'Player', // Re-add name to satisfy NOT NULL constraint
+      name: name, // No longer need fallback
       score,
       max_streak: maxStreak,
       duration_seconds: durationSeconds,
@@ -140,17 +140,17 @@ export default function PlayRoom() {
       return;
     }
 
-    await broadcastFinish({ user_id: user.id, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds });
+    await broadcastFinish({ user_id: user.id, name: name, score, max_streak: maxStreak, duration_seconds: durationSeconds });
     await refreshResults();
 
-    setMySeedRow({ user_id: user.id, name: name || 'Player', score, max_streak: maxStreak, duration_seconds: durationSeconds, finished_at: new Date().toISOString() });
+    setMySeedRow({ user_id: user.id, name: name, score, max_streak: maxStreak, duration_seconds: durationSeconds, finished_at: new Date().toISOString() });
     if (Array.isArray(resultRows)) setMyResultRows(resultRows);
     setOverlayView('room');
     setShowOverlay(true);
   }
 
-  if (loading || !user) {
-    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading...</p></div>;
+  if (loading || profileLoading || !user) {
+    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading Profile...</p></div>;
   }
 
   return (

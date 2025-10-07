@@ -5,8 +5,9 @@ import supabase from '../lib/supabaseClient';
 export function useSupabaseAuth() {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   // Listen to auth changes
   useEffect(() => {
@@ -34,6 +35,7 @@ export function useSupabaseAuth() {
   // Fetch profile when user changes
   useEffect(() => {
     if (user) {
+      setProfileLoading(true);
       supabase
         .from('profiles')
         .select('username')
@@ -41,7 +43,10 @@ export function useSupabaseAuth() {
         .single()
         .then(({ data }) => {
           setName(data?.username || '');
+          setProfileLoading(false);
         });
+    } else {
+      setProfileLoading(false);
     }
   }, [user]);
 
@@ -64,5 +69,5 @@ export function useSupabaseAuth() {
     setName('');
   };
 
-  return { session, user, loading, name, setName: updateProfile, signOut };
+  return { session, user, loading, profileLoading, name, setName: updateProfile, signOut };
 }

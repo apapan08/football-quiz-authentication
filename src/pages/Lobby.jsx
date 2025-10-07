@@ -9,7 +9,7 @@ import { QUIZ_ID } from '../lib/quizVersion';
 export default function Lobby() {
   const { code } = useParams();
   const nav = useNavigate();
-  const { user, loading, name } = useSupabaseAuth();
+  const { user, loading, profileLoading, name } = useSupabaseAuth();
 
   const [room, setRoom] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -22,14 +22,14 @@ export default function Lobby() {
       : '';
 
   useEffect(() => {
-    if (!loading && !name.trim()) {
+    if (!loading && !profileLoading && !name.trim()) {
       nav(`/join/${code}`, { replace: true });
     }
-  }, [loading, name, code, nav]);
+  }, [loading, profileLoading, name, code, nav]);
 
   // Fetch room (prefer current quiz), ensure I'm a participant
   useEffect(() => {
-    if (loading || !user) return;
+    if (loading || profileLoading || !user) return;
 
     (async () => {
       let q = await supabase

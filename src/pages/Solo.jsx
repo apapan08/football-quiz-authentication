@@ -9,7 +9,7 @@ import { QUIZ_ID } from "../lib/quizVersion";
 
 export default function Solo() {
   const nav = useNavigate();
-  const { session, user, loading, name, setName } = useSupabaseAuth();
+  const { session, user, loading, profileLoading, name, setName } = useSupabaseAuth();
   const [showOverlay, setShowOverlay] = useState(false);
   const [overlayView, setOverlayView] = useState("global");
   const [refreshTick, setRefreshTick] = useState(0);
@@ -26,7 +26,7 @@ export default function Solo() {
 
     const payload = {
       user_id: user.id,
-      name: name || 'Player', // Re-add name to satisfy NOT NULL constraint
+      name: name, // No longer need fallback
       score,
       max_streak: maxStreak,
       duration_seconds: durationSeconds,
@@ -80,7 +80,7 @@ export default function Solo() {
 
     mySeedRowRef.current = {
       user_id: user.id,
-      name: res.name || name || "Player",
+      name: name,
       score,
       max_streak: maxStreak,
       duration_seconds: durationSeconds,
@@ -92,8 +92,8 @@ export default function Solo() {
     setShowOverlay(true);
   }
 
-  if (loading || !session) {
-    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading...</p></div>;
+  if (loading || profileLoading || !session) {
+    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading Profile...</p></div>;
   }
 
   return (

@@ -14,7 +14,7 @@ function useQuery() {
 export default function Landing() {
   const nav = useNavigate();
   const query = useQuery();
-  const { session, user, loading, name, signOut } = useSupabaseAuth();
+  const { session, user, loading, profileLoading, name, signOut } = useSupabaseAuth();
   const [code, setCode] = useState('');
 
   useEffect(() => {
@@ -73,8 +73,8 @@ export default function Landing() {
     nav(`/room/${room.code}`);
   }
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading...</p></div>;
+  if (loading || profileLoading) {
+    return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}><p className="text-white">Loading Profile...</p></div>;
   }
 
   if (!session) {
@@ -97,7 +97,7 @@ export default function Landing() {
       style={{ background: 'linear-gradient(180deg,#223B57,#2F4E73)' }}
     >
       <div className="card w-full max-w-3xl text-slate-100">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
           <h1 className="font-display text-3xl md:text-4xl font-extrabold">Welcome, {name || 'Player'}!</h1>
           <div className="flex items-center gap-2">
             <button onClick={() => nav('/profile')} className="btn btn-neutral">Profile</button>
